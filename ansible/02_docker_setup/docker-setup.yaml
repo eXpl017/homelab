@@ -1,0 +1,72 @@
+---
+- hosts: rasp
+  become: true
+  gather_facts: true
+
+  vars:
+    unins_pkg:
+      - docker.io
+      - docker-compose
+      - docker-doc
+      - podman-docker
+      - containerd
+      - runc
+
+    docker_pkg:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+
+  tasks:
+    - name: Uninstall unoff-pkgs, containerd and runc
+      apt:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ unins_pkg }}"
+
+    - name: Creating directory with perms
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '755'
+        owner: root
+        group: root
+
+    - name: Get GPG keys
+      get_url:
+        url: https://download.docker.com/linux/debian/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        force: true
+        mode: a+r
+
+    - name: Add repo to apt source list
+      deb822_repository:
+        name: "docker-rep"
+        types: deb
+        uris: https://download.docker.com/linux/debian
+        suites: "{{ ansible_distribution_release }}"
+        components: stable
+        signed_by: /etc/apt/keyrings/docker.asc
+
+    - name: Update cache
+      apt:
+        update_cache: true
+        cache_valid_time: 7200
+
+    - name: Install docker packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ docker_pkg }}"
+
+    - name: Get docker process state
+      systemd_service:
+        name: docker
+      register: docker_details
+
+    - name: Show docker process state
+      debug:
+        msg: "Current state of docker process is {{ docker_details.status.ActiveState }}"
+

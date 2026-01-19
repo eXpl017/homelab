@@ -1,0 +1,51 @@
+---
+- name: Playbook for fail2ban install and config
+  hosts: rasp
+  become: true
+
+  vars:
+    templates_to_send:
+      - src: fail2ban.conf.j2
+        dest: /etc/fail2ban/fail2ban.local
+      - src: jail.conf.j2
+        dest: /etc/fail2ban/jail.local
+
+    fail2ban_config:
+      - key: loglevel
+        value: INFO
+
+    default_jail_config:
+      - key: bantime
+        value: 10m
+      - key: findtime
+        value: 10m
+      - key: maxretry
+        value: 3
+
+    ssh_jail_config:
+      - key: bantime
+        value: 1h
+      - key: port
+        value: ssh
+
+    recidive_jail_config:
+      - key: bantime
+        value: 1w
+      - key: findtime
+        value: 1d
+      - key: maxretry
+        value: 5
+
+  tasks:
+    - name: Install fail2ban
+      apt:
+        name: fail2ban
+        state: present
+        update_cache: true
+
+    - name: Copying fail2ban and jail config files to host
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      loop:
+        "{{ templates_to_send }}"

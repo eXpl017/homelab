@@ -1,0 +1,10 @@
+[Match]
+Name={{ intf_name }}
+
+[Network]
+DHCP=no
+DNS={{ dns | join(" ") }}
+IPv6PrivacyExtensions=false
+
+Gateway={{ def_gway }}
+Address={{ intf_addr }}/{{ prefix }}

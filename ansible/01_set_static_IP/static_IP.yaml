@@ -1,0 +1,89 @@
+---
+- hosts: rasp
+  become: yes
+  gather_facts: yes
+
+  vars:
+    network_services:
+      - NetworkManager.service
+      - systemd-networkd.service
+
+    nm_services:
+      - NetworkManager.service
+      - NetworkManager-wait-online.service
+      - NetworkManager-dispatcher.service
+      - network-manager.service
+
+  tasks:
+    - name: Exit if service manager not systemd
+      fail:
+        msg: "Not a systemd distro, quitting."
+      when: ansible_service_mgr != 'systemd'
+
+    - name: Gather service_facts
+      ansible.builtin.service_facts:
+
+    - name: Show default IPv4 config
+      debug:
+        msg: |
+          default_ipv4: {{ ansible_default_ipv4 | default('Not Defined') }}
+
+    - name: Extract important variables
+      ansible.builtin.set_fact:
+        svc: "{{ services }}"
+        intf_name: "{{ ansible_default_ipv4.interface }}"
+        intf_addr: "{{ ansible_default_ipv4.address }}"
+        prefix: "{{ ansible_default_ipv4.prefix }}"
+        def_gway: "{{ ansible_default_ipv4.gateway }}"
+        dns: "{{ ansible_dns.nameservers }}"
+
+    - name: Status of network managing services, before changes
+      debug:
+        msg: "{{ item }} is {{ svc[item].status }}"
+      loop: "{{ network_services }}"
+
+    - name: Stop, Disable and Mask Network Manager
+      systemd_service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+        masked: true
+      loop: "{{ nm_services }}"
+      when:
+        - svc['NetworkManager.service'].state == "running" or
+          svc['NetworkManager.service'].status == "enabled"
+
+    - name: Creating and copying intf config file for networkd
+      template:
+        src: intf.conf.j2
+        # change below /tmp/ to /etc/systemd/network/
+        dest: /etc/systemd/network/05-{{ intf_name }}.network
+
+    - name: Unmask, Enable and Start networkd
+      systemd_service:
+        name: systemd-networkd.service
+        state: started
+        enabled: true
+        masked: false
+      when: svc['systemd-networkd.service'].state != "running"
+
+    - name: Get NetworkManager state post change
+      systemd_service:
+        name: NetworkManager.service
+      register: nm_details
+
+    - name: Show NetworkManager state post change
+      debug:
+        msg: "NetworkManager status is {{ nm_details.status.ActiveState }}"
+
+    - name: Ensure networkd state is running
+      systemd_service:
+        name: systemd-networkd.service
+      register: sn_details
+      until: sn_details.status.ActiveState=='active'
+      retries: 5
+      delay: 5
+
+    - name: Show systemd-networkd state post change
+      debug:
+        msg: "systemd-networkd state is {{ sn_details.status.ActiveState }}"

@@ -1,0 +1,49 @@
+---
+- hosts: rasp
+  become: true
+  vars:
+    config_list:
+      - key: PermitEmptyPasswords
+        value: "no"
+      - key: PermitRootLogin
+        value: "no"
+      - key: AllowUsers
+        value: "{{ lookup('env','USER') }}"
+      - key: Port
+        value: 2222
+      - key: PasswordAuthentication
+        value: "yes"
+      - key: PubKeyAuthentication
+        value: "yes"
+      - key: MaxAuthTries
+        value: 3
+      - key: AllowTcpForwarding
+        value: "no"
+      - key: AuthorizedKeysFile
+        value: /etc/ssh/ansible/authorized_keys
+
+  tasks:
+    - name: Backup current ssh config
+      copy:
+        remote_src: true
+        src: /etc/ssh/sshd_config
+        dest: /etc/ssh/sshd_config.bak
+        backup: true
+
+    - name: Secure SSH config change
+      lineinfile:
+        path: "/etc/ssh/sshd_config"
+        regexp: "^(#)?{{ item.key }}"
+        line: "{{ item.key }} {{ item.value }}"
+        state: present
+        validate: sshd -t -f %s
+      loop:
+        "{{ config_list }}"
+      notify:
+        Restart sshd
+
+#   handlers:
+#     - name: Restart sshd
+#       service:
+#         name: sshd
+#         state: restarted

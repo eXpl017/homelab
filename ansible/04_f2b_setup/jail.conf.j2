@@ -1,0 +1,59 @@
+# info about options below can be found from `man 5 jail.conf`
+
+[DEFAULT]
+
+ignoreself = true
+ignoreip = 127.0.0.1/8
+
+bantime.overalljails = true
+
+{% for def_config in default_jail_config %}
+{{ def_config.key }} = {{ def_config.value }}
+{% endfor %}
+
+maxmatches = %(maxretry)s
+
+backend = auto
+usedns = warn
+
+enabled = false
+mode = normal
+
+##### ACTIONS #####
+
+protocol = tcp
+
+banactioD = iptables-multiport
+banaction_allports = iptables-allports
+
+action_ = %(banaction)s[port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+action = %(action_)s
+
+##### JAILS #####
+
+[sshd]
+enabled = true
+filter = sshd
+logpath = %(sshd_log)s
+{% for ssh_config in ssh_jail_config %}
+{{ ssh_config.key }} = {{ ssh_config.value }}
+{% endfor %}
+
+
+[recidive]
+enabled = true
+filter = recidive
+logpath = /var/log/fail2ban.log
+{% for recidive_config in recidive_jail_config %}
+{{ recidive_config.key }} = {{ recidive_config.value }}
+{% endfor %}
+
+
+[grafana]
+port    = http,https
+logpath = /var/log/grafana/grafana.log
+
+
+[bitwarden]
+port    = http,https
+logpath = /home/*/bwdata/logs/identity/Identity/log.txt

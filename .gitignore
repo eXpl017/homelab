@@ -1,0 +1,11 @@
+.git/
+
+# ansible
+
+ansible/inventory.yaml
+
+ansible/.ansible/
+
+ansible/secrets/
+
+#
