@@ -1,0 +1,44 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - '${PWD}/prometheus.yml:/etc/prometheus/prometheus.yml'
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: grafana
+    user: "472:0"
+    ports:
+      - "3000:3000"
+    volumes:
+      - '${PWD}/graf_data:/var/lib/grafana'
+      - '${PWD}/provisioning:/etc/grafana/provisioning/'
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+
+networks:
+  monitoring:
+    external: true
+
