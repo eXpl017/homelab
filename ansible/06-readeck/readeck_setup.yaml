@@ -1,0 +1,19 @@
+---
+- hosts: rasp
+  become: true
+
+  tasks:
+    - name: Create dir for readeck
+      ansible.builtin.file:
+        path: /opt/readeck
+        state: directory
+
+    - name: Transfer compose file
+      ansible.builtin.copy:
+        src: docker-compose.yaml
+        dest: /opt/readeck/docker-compose.yaml
+
+    - name: Run command to start readeck
+      ansible.builtin.command:
+        chdir: /opt/readeck
+        cmd: docker compose up -d
