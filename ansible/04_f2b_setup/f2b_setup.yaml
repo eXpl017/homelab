@@ -49,3 +49,20 @@
         dest: "{{ item.dest }}"
       loop:
         "{{ templates_to_send }}"
+      notify:
+        - Restart fail2ban
+
+    - name: Ensure fail2ban service is active
+      ansible.builtin.systemd_service:
+        name: fail2ban.service
+      register: f2b_details
+      until: f2b_details.status.ActiveState=='active'
+      retries: 5
+      delay: 5
+
+  handlers:
+    - name: Restart fail2ban
+      ansible.builtin.service:
+        name: fail2ban.service
+        state: restarted
+        enabled: true
