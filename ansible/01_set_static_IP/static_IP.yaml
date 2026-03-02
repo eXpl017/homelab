@@ -1,6 +1,5 @@
 ---
 - hosts: rasp
-  become: yes
   gather_facts: yes
 
   vars:
@@ -14,17 +13,18 @@
       - NetworkManager-dispatcher.service
       - network-manager.service
 
-  tasks:
+  pre_tasks:
     - name: Exit if service manager not systemd
-      fail:
+      ansible.builtin.fail:
         msg: "Not a systemd distro, quitting."
       when: ansible_service_mgr != 'systemd'
 
+  tasks:
     - name: Gather service_facts
       ansible.builtin.service_facts:
 
     - name: Show default IPv4 config
-      debug:
+      ansible.builtin.debug:
         msg: |
           default_ipv4: {{ ansible_default_ipv4 | default('Not Defined') }}
 
@@ -38,52 +38,45 @@
         dns: "{{ ansible_dns.nameservers }}"
 
     - name: Status of network managing services, before changes
-      debug:
-        msg: "{{ item }} is {{ svc[item].status }}"
+      ansible.builtin.debug:
+        msg: "{{ item }} is {{ svc[item].status }} | default('Service not found!')"
       loop: "{{ network_services }}"
+      ignore_errors: true
 
     - name: Stop, Disable and Mask Network Manager
-      systemd_service:
+      ansible.builtin.systemd_service:
         name: "{{ item }}"
         state: stopped
         enabled: false
         masked: true
       loop: "{{ nm_services }}"
       when:
+        - 'NetworkManager.service' in svc
         - svc['NetworkManager.service'].state == "running" or
           svc['NetworkManager.service'].status == "enabled"
 
     - name: Creating and copying intf config file for networkd
-      template:
+      ansible.builtin.template:
         src: intf.conf.j2
-        # change below /tmp/ to /etc/systemd/network/
         dest: /etc/systemd/network/05-{{ intf_name }}.network
+      notify:
+        - Unmask, Enable and Start networkd
 
-    - name: Unmask, Enable and Start networkd
-      systemd_service:
-        name: systemd-networkd.service
-        state: started
-        enabled: true
-        masked: false
-      when: svc['systemd-networkd.service'].state != "running"
-
-    - name: Get NetworkManager state post change
-      systemd_service:
-        name: NetworkManager.service
-      register: nm_details
-
-    - name: Show NetworkManager state post change
-      debug:
-        msg: "NetworkManager status is {{ nm_details.status.ActiveState }}"
+    - name: Flush Handlers
+      ansible.builtin.meta: flush_handlers
 
     - name: Ensure networkd state is running
-      systemd_service:
+      ansible.builtin.systemd_service:
         name: systemd-networkd.service
       register: sn_details
       until: sn_details.status.ActiveState=='active'
       retries: 5
       delay: 5
 
-    - name: Show systemd-networkd state post change
-      debug:
-        msg: "systemd-networkd state is {{ sn_details.status.ActiveState }}"
+  handlers:
+    - name: Unmask, Enable and Start networkd
+      ansible.builtin.systemd_service:
+        name: systemd-networkd.service
+        state: started
+        enabled: true
+        masked: false
