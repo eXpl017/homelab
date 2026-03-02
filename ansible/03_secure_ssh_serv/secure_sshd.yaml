@@ -1,6 +1,5 @@
 ---
 - hosts: rasp
-  become: true
   vars:
     config_list:
       - key: PermitEmptyPasswords
@@ -27,7 +26,7 @@
       copy:
         remote_src: true
         src: /etc/ssh/sshd_config
-        dest: /etc/ssh/sshd_config.bak
+        dest: /etc/ssh/cfg_backup/sshd_config
         backup: true
 
     - name: Secure SSH config change
@@ -40,10 +39,34 @@
       loop:
         "{{ config_list }}"
       notify:
-        Restart sshd
+        - Restart sshd
 
-#   handlers:
-#     - name: Restart sshd
-#       service:
-#         name: sshd
-#         state: restarted
+    - name: Install UFW on host
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+        enabled: true
+
+    - name: Allow SSH Port
+      community.general.ufw:
+        rule: allow
+        port: "{{ config_list | selectattr('name', 'equalto', 'Port') }}"
+        proto: tcp
+
+    - name: Flush Handlers
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait for sshd to restart
+      ansible.builtin.wait_for:
+        connect_timeout: 5
+        delay: 5
+        host: "{{ ansible_host }}"
+        port: "{{ config_list | selectattr('name', 'equalto', 'Port') }}"
+        state: started
+        timeout: 300
+
+  handlers:
+    - name: Restart sshd
+      service:
+        name: sshd
+        state: restarted
