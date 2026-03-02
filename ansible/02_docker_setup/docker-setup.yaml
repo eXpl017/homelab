@@ -1,6 +1,5 @@
 ---
 - hosts: rasp
-  become: true
   gather_facts: true
 
   vars:
@@ -19,30 +18,37 @@
       - docker-buildx-plugin
       - docker-compose-plugin
 
+  pre_tasks:
+    - name: Exit if service manager not systemd
+      ansible.builtin.fail:
+        msg: "Not a systemd distro, quitting."
+      when: ansible_service_mgr != 'systemd'
+
   tasks:
     - name: Uninstall unoff-pkgs, containerd and runc
-      apt:
-        name: "{{ item }}"
+      ansible.builtin.apt:
+        name: "{{ unins_pkg }}"
         state: absent
-      loop: "{{ unins_pkg }}"
+        autoremove: true
+        purge: true
 
     - name: Creating directory with perms
-      file:
+      ansible.builtin.file:
         path: /etc/apt/keyrings
         state: directory
-        mode: '755'
+        mode: 0755
         owner: root
         group: root
 
     - name: Get GPG keys
-      get_url:
+      ansible.builtin.get_url:
         url: https://download.docker.com/linux/debian/gpg
         dest: /etc/apt/keyrings/docker.asc
         force: true
         mode: a+r
 
     - name: Add repo to apt source list
-      deb822_repository:
+      ansible.builtin.deb822_repository:
         name: "docker-rep"
         types: deb
         uris: https://download.docker.com/linux/debian
@@ -51,22 +57,31 @@
         signed_by: /etc/apt/keyrings/docker.asc
 
     - name: Update cache
-      apt:
+      ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 7200
 
     - name: Install docker packages
-      apt:
-        name: "{{ item }}"
+      ansible.builtin.apt:
+        name: "{{ docker_pkg }}"
         state: present
-      loop: "{{ docker_pkg }}"
+      notify:
+        - Enable and Start Docker
 
-    - name: Get docker process state
-      systemd_service:
-        name: docker
-      register: docker_details
+    - name: Flush Handler
+      ansible.builtin.meta: flush_handler
 
-    - name: Show docker process state
-      debug:
-        msg: "Current state of docker process is {{ docker_details.status.ActiveState }}"
+    - name: Ensure Docker service is active
+      ansible.builtin.systemd_service:
+        name: docker.service
+      register: dkr_svc_details
+      until: dkr_svc_details.status.ActiveState=='active'
+      retries: 5
+      delay: 5
 
+  handlers:
+    - name: Enable and Start Docker
+      ansible.builtin.service:
+        name: docker.service
+        enabled: true
+        state: started
