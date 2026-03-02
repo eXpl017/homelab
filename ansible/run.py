@@ -70,6 +70,7 @@ class Secrets():
 
         writeFile(SECRETS_FILE, secrets)
 
+        print("[+] Encrypting secrets file.")
         cmd = f"ansible-vault encrypt -J {SECRETS_FILE}"
         run(cmd.split(), check=True)
 
