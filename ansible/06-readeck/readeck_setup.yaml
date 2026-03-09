@@ -19,12 +19,19 @@
       ansible.builtin.copy:
         src: "{{ item.filename }}"
         dest: "{{ item.put_at }}"
-      loop: "{{ files_to_transfer | dict2items }}"
+      loop: "{{ files_to_transfer }}"
 
     - name: Run command to start readeck
       ansible.builtin.command:
         chdir: /opt/readeck
         cmd: docker compose up -d
       notify:
-        check_container
+        Confirm if container running
 
+    - name: Confirm if container running
+      community.docker.docker_container_info:
+        name: readeck
+      register: readeck_info
+      until: readeck_info.exists
+      retries: 5
+      delay: 5
