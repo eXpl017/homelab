@@ -25,8 +25,6 @@
       ansible.builtin.command:
         chdir: /opt/readeck
         cmd: docker compose up -d
-      notify:
-        Confirm if container running
 
     - name: Confirm if container running
       community.docker.docker_container_info:
