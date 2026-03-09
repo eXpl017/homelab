@@ -1,0 +1,38 @@
+- hosts: rasp
+  gather_facts: true
+
+  vars:
+    ports_to_check:
+      - 53
+      - 80
+      - 443
+      - 3000
+
+  pre_tasks:
+    - name: Exit if port open
+      ansible.builtin.wait_for:
+        port: "{{ item }}"
+        state: stopped
+        msg: "Port {{ item }} is being used by some other process, exiting!"
+      loop:
+        "{{ ports_to_check }}"
+
+  tasks:
+    - name: Copy compose file
+      ansible.builtin.copy:
+        src: ./docker-compose.yaml
+        dest: /opt/adguard/docker-compose.yaml
+
+    - name: Run command to start readeck
+      ansible.builtin.command:
+        chdir: /opt/adguard
+        cmd: docker compose up -d
+
+    - name: Confirm if container running
+      community.docker.docker_container_info:
+        name: adguard
+      register: adguard_info
+      until: adguard_info.exists
+      retries: 5
+      delay: 5
+
