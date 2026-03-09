@@ -2,18 +2,29 @@
 - hosts: rasp
   become: true
 
+  vars:
+    files_to_transfer:
+      - filename: docker-compose.yaml
+        put_at: /opt/readeck/
+      - filename: readeck-data/config.toml
+        put_at: /opt/readeck/readeck-data
+
   tasks:
     - name: Create dir for readeck
       ansible.builtin.file:
-        path: /opt/readeck
+        path: /opt/readeck/readeck-data
         state: directory
 
-    - name: Transfer compose file
+    - name: Transfer files
       ansible.builtin.copy:
-        src: docker-compose.yaml
-        dest: /opt/readeck/docker-compose.yaml
+        src: "{{ item.filename }}"
+        dest: "{{ item.put_at }}"
+      loop: "{{ files_to_transfer | dict2items }}"
 
     - name: Run command to start readeck
       ansible.builtin.command:
         chdir: /opt/readeck
         cmd: docker compose up -d
+      notify:
+        check_container
+
