@@ -1,0 +1,43 @@
+---
+services:
+  pg-joplin:
+    image: postgres:15
+    container_name: pg-joplin
+    restart: unless-stopped
+    secrets:
+      - pg_user
+      - pg_pass
+      - pg_db
+    env_file:
+      - ./env_files/pg.txt
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - joplin_network
+
+  joplin-server:
+    image: joplin/server:latest
+    container_name: joplin-server
+    restart: unless-stopped
+    env_file:
+      - ./joplin-serv.env
+    networks:
+      - rproxy_network
+      - joplin_network
+    depends_on:
+      - pg-joplin
+
+
+secrets:
+  pg_user:
+    file: ./secrets/pg_user.txt
+  pg_pass:
+    file: ./secrets/pg_pass.txt
+  pg_db:
+    file: ./secrets/pg_db.txt
+
+
+networks:
+  rproxy_network:
+    external: true
+  joplin_network:

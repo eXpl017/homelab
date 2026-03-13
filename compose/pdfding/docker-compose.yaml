@@ -1,0 +1,17 @@
+---
+services:
+  pdfding:
+    image: mrmn/pdfding:latest
+    container_name: pdfding
+    volumes:
+      - ./sqlite_data:/home/nonroot/pdfding/db
+      - ./media:/home/nonroot/pdfding/media
+    env_file:
+      - ./env_files/pdfding.env
+    networks:
+      - rproxy_network
+
+
+networks:
+  rproxy_network:
+    external: true
