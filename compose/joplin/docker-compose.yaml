@@ -9,7 +9,7 @@ services:
       - pg_pass
       - pg_db
     env_file:
-      - ./env_files/pg.txt
+      - ./env_files/pg.env
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
     networks:
@@ -20,7 +20,7 @@ services:
     container_name: joplin-server
     restart: unless-stopped
     env_file:
-      - ./joplin-serv.env
+      - ./env_files/joplin-serv.env
     networks:
       - rproxy_network
       - joplin_network
