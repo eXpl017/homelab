@@ -6,12 +6,12 @@
 
 ## Planned services:
 
-- [] joplin
-- [] readeck
-- [] pdfding
-- [] vaultwarden
-- [] freshrss
-- [] nginx (reverse-proxy for all the above)
+- [x] joplin
+- [x] readeck
+- [x] pdfding
+- [x] vaultwarden
+- [ ] freshrss
+- [ ] nginx (reverse-proxy for all the above)
 
 
 ## Some issues
